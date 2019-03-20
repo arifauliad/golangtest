@@ -2,53 +2,72 @@ package main
 
 import (
 	"fmt"
-	"log"
 	"os"
 	"path/filepath"
 )
 
-func visitsource(files *[]string) filepath.WalkFunc {
-	return func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			log.Fatal(err)
-		}
-		*files = append(*files, path)
-		return nil
-	}
-}
+var (
+	fileInfoSource os.FileInfo
+	errSource      error
+)
 
-func visittarget(files *[]string) filepath.WalkFunc {
-	return func(path string, info os.FileInfo, err error) error {
-		if err != nil {
-			log.Fatal(err)
-		}
-		*files = append(*files, path)
-		return nil
-	}
-}
+var (
+	fileInfoTarget os.FileInfo
+	errTarget      error
+)
 
 func main() {
 	var sourcefiles []string
 	var targetfiles []string
+	var is_ int
 
-	source := "C:/Go/src/compare1/source"
-	errsource := filepath.Walk(source, visitsource(&sourcefiles))
-	if errsource != nil {
-		panic(errsource)
+	rootSource := "source"
+	errSource := filepath.Walk(rootSource, func(path string, info os.FileInfo, err error) error {
+		sourcefiles = append(sourcefiles, path)
+		return nil
+	})
+	if errSource != nil {
+		panic(errSource)
 	}
 
-	target := "C:/Go/src/compare1/target"
-	errtarget := filepath.Walk(target, visittarget(&targetfiles))
-	if errtarget != nil {
-		panic(errtarget)
+	rootTarget := "target"
+	errTarget := filepath.Walk(rootTarget, func(path string, info os.FileInfo, err error) error {
+		targetfiles = append(targetfiles, path)
+		return nil
+	})
+	if errTarget != nil {
+		panic(errTarget)
 	}
 
-	for _, file := range sourcefiles {
-		fmt.Println(file)
+	for _, sourcefile := range sourcefiles {
+		fileInfoSource, errSource = os.Stat(sourcefile)
+		is_ = 0
+		if fileInfoSource.IsDir() == false {
+			for _, targetfile := range targetfiles {
+				fileInfoTarget, errTarget = os.Stat(targetfile)
+				if fileInfoSource.Name() == fileInfoTarget.Name() && fileInfoSource.Size() == fileInfoTarget.Size() {
+					is_ = 1
+				}
+			}
+			if is_ == 0 {
+				fmt.Println(sourcefile, " NEW")
+			}
+		}
 	}
 
-	fmt.Println()
-	for _, file := range targetfiles {
-		fmt.Println(file)
+	for _, targetfile := range targetfiles {
+		fileInfoTarget, errTarget = os.Stat(targetfile)
+		is_ = 0
+		if fileInfoTarget.IsDir() == false {
+			for _, sourcefile := range sourcefiles {
+				fileInfoSource, errSource = os.Stat(sourcefile)
+				if fileInfoTarget.Name() == fileInfoSource.Name() && fileInfoTarget.Size() == fileInfoSource.Size() {
+					is_ = 1
+				}
+			}
+			if is_ == 0 {
+				fmt.Println(targetfile, " DELETED")
+			}
+		}
 	}
 }
